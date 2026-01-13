@@ -57,11 +57,16 @@ const COLOR_STAMINA_EXHAUSTED: Color = Color(0.9, 0.2, 0.2, 1.0)
 var inventory_layer: CanvasLayer
 var inventory_ui: Control
 var is_inventory_open: bool = false
+
+# Health System
+var health_system: HealthSystem
+var health_ui: HealthUI
 #endregion
 
 #region Initialization
 func _ready() -> void:
 	_initialize_stamina_bar()
+	_initialize_health_system()
 	_initialize_inventory()
 	Input.set_mouse_mode(Input.MOUSE_MODE_CAPTURED)
 
@@ -69,6 +74,53 @@ func _initialize_stamina_bar() -> void:
 	if stamina_bar:
 		stamina_bar.max_value = max_stamina
 		stamina_bar.value = stamina
+
+func _initialize_health_system() -> void:
+	# Create health system
+	health_system = HealthSystem.new()
+	add_child(health_system)
+	
+	# Create health UI
+	var health_ui_class = load("res://Assets/World/Script/Health/health_ui.gd")
+	health_ui = health_ui_class.new()
+	health_ui.health_system = health_system
+	health_ui.name = "HealthUI"
+	
+	# Add to CanvasLayer FIRST
+	$CanvasLayer.add_child(health_ui)
+	
+	# Position at bottom-left using deferred call (after UI is ready)
+	call_deferred("_position_health_ui")
+	
+	# Connect death signal
+	health_system.player_died.connect(_on_player_died)
+	
+	print("Health System initialized")
+
+func _position_health_ui() -> void:
+	if not health_ui:
+		return
+	
+	# Get viewport size
+	var viewport_size = get_viewport().get_visible_rect().size
+	
+	# Position at bottom-left with margin
+	health_ui.position = Vector2(20, viewport_size.y - 340)
+	health_ui.size = Vector2(260, 320)
+	
+	# Force visibility
+	health_ui.visible = true
+	health_ui.show()
+	
+	print("Health UI positioned at: ", health_ui.position)
+	print("Health UI size: ", health_ui.size)
+	print("Viewport size: ", viewport_size)
+
+func _on_player_died() -> void:
+	print("Player has died!")
+	# Disable movement
+	set_physics_process(false)
+	# You can add death screen, respawn logic, etc. later
 
 func _initialize_inventory() -> void:
 	# Create a CanvasLayer for UI
@@ -118,6 +170,10 @@ func _input(event: InputEvent) -> void:
 	if is_inventory_open:
 		# Maybe allow closing with other keys?
 		return
+	
+	# TEST: Press number keys to damage body parts (for testing)
+	if event is InputEventKey and event.pressed and health_system:
+		_handle_health_test_input(event.keycode)
 
 	# Handle mouse look
 	if event is InputEventMouseMotion:
@@ -127,6 +183,34 @@ func _input(event: InputEvent) -> void:
 	elif event is InputEventMouseButton and event.pressed:
 		if not is_inventory_open:
 			Input.set_mouse_mode(Input.MOUSE_MODE_CAPTURED)
+
+func _handle_health_test_input(keycode: int) -> void:
+	match keycode:
+		KEY_1:
+			health_system.damage_part(BodyPart.PartType.HEAD, 10)
+			print("Damaged HEAD - 10 damage")
+		KEY_2:
+			health_system.damage_part(BodyPart.PartType.THORAX, 15)
+			print("Damaged THORAX - 15 damage")
+		KEY_3:
+			health_system.damage_part(BodyPart.PartType.STOMACH, 10)
+			print("Damaged STOMACH - 10 damage")
+		KEY_4:
+			health_system.damage_part(BodyPart.PartType.LEFT_ARM, 10)
+			print("Damaged LEFT ARM - 10 damage")
+		KEY_5:
+			health_system.damage_part(BodyPart.PartType.RIGHT_ARM, 10)
+			print("Damaged RIGHT ARM - 10 damage")
+		KEY_6:
+			health_system.damage_part(BodyPart.PartType.LEFT_LEG, 10)
+			print("Damaged LEFT LEG - 10 damage")
+		KEY_7:
+			health_system.damage_part(BodyPart.PartType.RIGHT_LEG, 10)
+			print("Damaged RIGHT LEG - 10 damage")
+		KEY_0:
+			health_system.reset_health()
+			set_physics_process(true)  # Re-enable movement
+			print("Health RESET")
 
 func _toggle_inventory() -> void:
 	is_inventory_open = !is_inventory_open

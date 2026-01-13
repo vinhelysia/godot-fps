@@ -153,7 +153,7 @@ shape = SubResource("ConvexPolygonShape3D_dwbse")
 [node name="Head" type="Node3D" parent="Player"]
 transform = Transform3D(1, 0, 0, 0, 0.99998134, -0.006108614, 0, 0.006108614, 0.99998134, -0.094153404, 0.5203011, -0.29888391)
 
-[node name="Camera3Ds" type="Camera3D" parent="Player/Head"]
+[node name="Camera3D" type="Camera3D" parent="Player/Head"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.00067198277, -0.110039055)
 
 [node name="CanvasLayer" type="CanvasLayer" parent="Player"]
