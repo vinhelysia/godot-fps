@@ -4,15 +4,17 @@ class_name HealthUI
 var health_system: HealthSystem
 
 # UI Components
-var body_part_displays: Dictionary = {}  # PartType -> Display data
+var body_part_displays: Dictionary = {}  # PartType -> {rect, health_label}
 var main_panel: Panel
 
-# Layout settings
-const MARGIN: float = 20.0
-const PART_WIDTH: float = 70.0
-const PART_HEIGHT: float = 55.0
-const BAR_HEIGHT: float = 12.0
-const SPACING: float = 8.0
+# Layout settings - Body part rectangle sizes
+const MARGIN: float = 10.0
+const RECT_SPACING: float = 0.5
+const HEAD_SIZE: Vector2 = Vector2(32, 32)
+const THORAX_SIZE: Vector2 = Vector2(44, 52)
+const ARM_SIZE: Vector2 = Vector2(20, 52)
+const STOMACH_SIZE: Vector2 = Vector2(44, 36)
+const LEG_SIZE: Vector2 = Vector2(20, 56)
 
 func _ready() -> void:
 	if not health_system:
@@ -24,117 +26,96 @@ func _ready() -> void:
 	_update_all_displays()
 	
 	# Force size and visibility
-	custom_minimum_size = Vector2(260, 320)
-	size = Vector2(260, 320)
+	custom_minimum_size = Vector2(160, 220)
+	size = Vector2(160, 220)
 	visible = true
 	show()
 	
 	print("=== HEALTH UI READY ===")
-	print("Children: ", get_child_count())
-	print("Panel exists: ", main_panel != null)
+	print("Body figure UI created")
 
 func _create_ui() -> void:
-	# Main panel container
+	# Main container (transparent - no background)
 	main_panel = Panel.new()
-	main_panel.custom_minimum_size = Vector2(260, 320)
-	main_panel.size = Vector2(260, 320)  # Force size
+	main_panel.custom_minimum_size = Vector2(160, 220)
+	main_panel.size = Vector2(160, 220)
 	
+	# Make panel fully transparent
 	var style = StyleBoxFlat.new()
-	style.bg_color = Color(0.08, 0.08, 0.12, 0.95)
-	style.border_width_left = 2
-	style.border_width_top = 2
-	style.border_width_right = 2
-	style.border_width_bottom = 2
-	style.border_color = Color(0.4, 0.45, 0.5)  # Brighter border
-	style.corner_radius_top_left = 4
-	style.corner_radius_top_right = 4
-	style.corner_radius_bottom_left = 4
-	style.corner_radius_bottom_right = 4
+	style.bg_color = Color(0, 0, 0, 0)  # Fully transparent
+	style.border_width_left = 0
+	style.border_width_top = 0
+	style.border_width_right = 0
+	style.border_width_bottom = 0
 	main_panel.add_theme_stylebox_override("panel", style)
 	
 	add_child(main_panel)
 	
-	# Title label
-	var title = Label.new()
-	title.text = "HEALTH STATUS"
-	title.position = Vector2(MARGIN, 10)
-	title.add_theme_font_size_override("font_size", 14)
-	title.add_theme_color_override("font_color", Color(0.8, 0.85, 0.9))
-	main_panel.add_child(title)
+	# Calculate center X for body alignment
+	var center_x = 80.0  # Panel width / 2
 	
-	# Create body part displays in Tarkov-style layout
-	var y_offset = 40.0
+	# HEAD (centered at top)
+	var head_x = center_x - HEAD_SIZE.x / 2
+	_create_part_rect(BodyPart.PartType.HEAD, Vector2(head_x, 10), HEAD_SIZE)
 	
-	# HEAD (center top)
-	_create_part_display(BodyPart.PartType.HEAD, Vector2(95, y_offset), main_panel)
-	y_offset += PART_HEIGHT + SPACING
+	# ARMS + THORAX row (below head)
+	var torso_y = 10 + HEAD_SIZE.y + RECT_SPACING
+	var thorax_x = center_x - THORAX_SIZE.x / 2
+	var left_arm_x = thorax_x - ARM_SIZE.x - RECT_SPACING
+	var right_arm_x = thorax_x + THORAX_SIZE.x + RECT_SPACING
 	
-	# ARMS + THORAX (row)
-	var arm_y = y_offset
-	_create_part_display(BodyPart.PartType.LEFT_ARM, Vector2(15, arm_y), main_panel)
-	_create_part_display(BodyPart.PartType.THORAX, Vector2(95, arm_y), main_panel)
-	_create_part_display(BodyPart.PartType.RIGHT_ARM, Vector2(175, arm_y), main_panel)
-	y_offset += PART_HEIGHT + SPACING
+	_create_part_rect(BodyPart.PartType.LEFT_ARM, Vector2(left_arm_x, torso_y), ARM_SIZE)
+	_create_part_rect(BodyPart.PartType.THORAX, Vector2(thorax_x, torso_y), THORAX_SIZE)
+	_create_part_rect(BodyPart.PartType.RIGHT_ARM, Vector2(right_arm_x, torso_y), ARM_SIZE)
 	
-	# STOMACH (center)
-	_create_part_display(BodyPart.PartType.STOMACH, Vector2(95, y_offset), main_panel)
-	y_offset += PART_HEIGHT + SPACING
+	# STOMACH (centered, below thorax)
+	var stomach_y = torso_y + THORAX_SIZE.y + RECT_SPACING
+	var stomach_x = center_x - STOMACH_SIZE.x / 2
+	_create_part_rect(BodyPart.PartType.STOMACH, Vector2(stomach_x, stomach_y), STOMACH_SIZE)
 	
-	# LEGS (row)
-	_create_part_display(BodyPart.PartType.LEFT_LEG, Vector2(55, y_offset), main_panel)
-	_create_part_display(BodyPart.PartType.RIGHT_LEG, Vector2(135, y_offset), main_panel)
+	# LEGS (below stomach)
+	var legs_y = stomach_y + STOMACH_SIZE.y + RECT_SPACING
+	var left_leg_x = center_x - LEG_SIZE.x - RECT_SPACING / 2
+	var right_leg_x = center_x + RECT_SPACING / 2
+	
+	_create_part_rect(BodyPart.PartType.LEFT_LEG, Vector2(left_leg_x, legs_y), LEG_SIZE)
+	_create_part_rect(BodyPart.PartType.RIGHT_LEG, Vector2(right_leg_x, legs_y), LEG_SIZE)
 
-func _create_part_display(part_type: BodyPart.PartType, pos: Vector2, parent: Control) -> void:
+func _create_part_rect(part_type: BodyPart.PartType, pos: Vector2, rect_size: Vector2) -> void:
 	var part = health_system.get_part(part_type)
 	if not part:
 		return
 	
-	var container = VBoxContainer.new()
-	container.position = pos
-	container.custom_minimum_size = Vector2(PART_WIDTH, PART_HEIGHT)
-	container.add_theme_constant_override("separation", 2)
+	# Create colored rectangle for body part
+	var rect = ColorRect.new()
+	rect.position = pos
+	rect.size = rect_size
+	rect.color = part.get_health_color()
 	
-	# Part name label
-	var label = Label.new()
-	label.text = part.part_name
-	label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	label.add_theme_font_size_override("font_size", 10)
-	label.add_theme_color_override("font_color", Color(0.7, 0.75, 0.8))
-	label.custom_minimum_size.x = PART_WIDTH
-	container.add_child(label)
+	# Add border styling via a Panel child
+	var border_panel = Panel.new()
+	border_panel.position = Vector2.ZERO
+	border_panel.size = rect_size
+	border_panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	
-	# Health numbers label
-	var health_label = Label.new()
-	health_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	health_label.add_theme_font_size_override("font_size", 11)
-	health_label.custom_minimum_size.x = PART_WIDTH
-	container.add_child(health_label)
-	
-	# Progress bar for health
-	var progress_bar = ProgressBar.new()
-	progress_bar.custom_minimum_size = Vector2(PART_WIDTH, BAR_HEIGHT)
-	progress_bar.max_value = part.max_health
-	progress_bar.value = part.current_health
-	progress_bar.show_percentage = false
-	
-	# Style the progress bar background
-	var bg_style = StyleBoxFlat.new()
-	bg_style.bg_color = Color(0.15, 0.15, 0.18)
-	bg_style.corner_radius_top_left = 2
-	bg_style.corner_radius_top_right = 2
-	bg_style.corner_radius_bottom_left = 2
-	bg_style.corner_radius_bottom_right = 2
-	progress_bar.add_theme_stylebox_override("background", bg_style)
-	
-	container.add_child(progress_bar)
-	parent.add_child(container)
+	var border_style = StyleBoxFlat.new()
+	border_style.bg_color = Color(0, 0, 0, 0)  # Transparent background
+	border_style.border_width_left = 2
+	border_style.border_width_top = 2
+	border_style.border_width_right = 2
+	border_style.border_width_bottom = 2
+	border_style.border_color = Color(0.2, 0.2, 0.25)
+	border_style.corner_radius_top_left = 3
+	border_style.corner_radius_top_right = 3
+	border_style.corner_radius_bottom_left = 3
+	border_style.corner_radius_bottom_right = 3
+	border_panel.add_theme_stylebox_override("panel", border_style)
+	rect.add_child(border_panel)
+	main_panel.add_child(rect)
 	
 	# Store reference for updates
 	body_part_displays[part_type] = {
-		"container": container,
-		"label": label,
-		"health_label": health_label,
-		"progress_bar": progress_bar
+		"rect": rect
 	}
 
 func _connect_signals() -> void:
@@ -153,26 +134,8 @@ func _update_part_display(part_type: BodyPart.PartType) -> void:
 	var part = health_system.get_part(part_type)
 	var display = body_part_displays[part_type]
 	
-	# Update health text
-	display.health_label.text = "%d/%d" % [int(part.current_health), int(part.max_health)]
-	
-	# Update progress bar value
-	display.progress_bar.value = part.current_health
-	
-	# Get health color
-	var color = part.get_health_color()
-	
-	# Update progress bar fill color
-	var fill_style = StyleBoxFlat.new()
-	fill_style.bg_color = color
-	fill_style.corner_radius_top_left = 2
-	fill_style.corner_radius_top_right = 2
-	fill_style.corner_radius_bottom_left = 2
-	fill_style.corner_radius_bottom_right = 2
-	display.progress_bar.add_theme_stylebox_override("fill", fill_style)
-	
-	# Update health label color
-	display.health_label.add_theme_color_override("font_color", color)
+	# Update rectangle color based on health
+	display.rect.color = part.get_health_color()
 
 func _update_all_displays() -> void:
 	for part_type in body_part_displays.keys():
@@ -180,4 +143,3 @@ func _update_all_displays() -> void:
 
 func _on_player_died() -> void:
 	print("=== PLAYER DIED ===")
-	# Can add death screen effects here later

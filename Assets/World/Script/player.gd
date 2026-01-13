@@ -101,20 +101,15 @@ func _position_health_ui() -> void:
 	if not health_ui:
 		return
 	
-	# Get viewport size
-	var viewport_size = get_viewport().get_visible_rect().size
-	
-	# Position at bottom-left with margin
-	health_ui.position = Vector2(20, viewport_size.y - 340)
-	health_ui.size = Vector2(260, 320)
+	# Position at TOP-LEFT corner
+	health_ui.position = Vector2(20, 20)
+	health_ui.size = Vector2(160, 220)
 	
 	# Force visibility
 	health_ui.visible = true
 	health_ui.show()
 	
 	print("Health UI positioned at: ", health_ui.position)
-	print("Health UI size: ", health_ui.size)
-	print("Viewport size: ", viewport_size)
 
 func _on_player_died() -> void:
 	print("Player has died!")
