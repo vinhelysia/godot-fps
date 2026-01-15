@@ -42,6 +42,7 @@ config/icon="res://icon.svg"
 [autoload]
 
 SimpleGrass="*res://addons/simplegrasstextured/singleton.tscn"
+ItemDB="*res://Assets/World/Script/Inventory/item_database.gd"
 
 [editor_plugins]
 

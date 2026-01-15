@@ -229,6 +229,16 @@ func _handle_mouse_look(event: InputEventMouseMotion) -> void:
 func _physics_process(delta: float) -> void:
 	_apply_gravity(delta)
 	
+	# Disable movement controls when inventory is open
+	if is_inventory_open:
+		# Still allow deceleration so player slows down naturally
+		if is_on_floor():
+			velocity.x = move_toward(velocity.x, 0.0, deceleration * delta * walk_speed)
+			velocity.z = move_toward(velocity.z, 0.0, deceleration * delta * walk_speed)
+		_update_ui()
+		move_and_slide()
+		return
+	
 	var input_direction := _get_input_direction()
 	var movement_direction := _calculate_movement_direction(input_direction)
 	var is_moving := movement_direction.length() > MOVEMENT_THRESHOLD

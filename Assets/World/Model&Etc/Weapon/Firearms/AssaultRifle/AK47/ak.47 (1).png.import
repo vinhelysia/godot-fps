@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://bwe4cjjmhijde"
-path="res://.godot/imported/color_2048x2048.jpg-f80f73b7183cee83923a5f2394f43d05.ctex"
+uid="uid://cd6tpcq8pvjpf"
+path="res://.godot/imported/ak.47 (1).png-cdd6c1a70349943ccedc46f405c3898d.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://Assets/World/Model/Tree/textures/color_2048x2048.jpg"
-dest_files=["res://.godot/imported/color_2048x2048.jpg-f80f73b7183cee83923a5f2394f43d05.ctex"]
+source_file="res://Assets/World/Model&Etc/Weapon/Firearms/AssaultRifle/AK47/ak.47 (1).png"
+dest_files=["res://.godot/imported/ak.47 (1).png-cdd6c1a70349943ccedc46f405c3898d.ctex"]
 
 [params]
 

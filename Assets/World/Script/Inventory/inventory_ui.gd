@@ -65,25 +65,20 @@ func _refresh_items():
 		add_child(draggable)
 
 func test():
-	# 1. Create item data
-	var rifle_data = ItemData.new()
-	rifle_data.item_id = "ak47"
-	rifle_data.item_name = "AK-47"
-	rifle_data.size = Vector2i(4, 2)
+	# Use the database to spawn items instead of manual creation
+	var ak47 = ItemDB.create_inventory_item("ak47", Vector2i(0, 0))
+	var ammo = ItemDB.create_inventory_item("ammo_762", Vector2i(5, 0))
+	var medkit = ItemDB.create_inventory_item("medkit", Vector2i(7, 0))
 	
-	var ammo_data = ItemData.new()
-	ammo_data.item_id = "ammo"
-	ammo_data.item_name = "Ammo"
-	ammo_data.size = Vector2i(1, 1)
-	
-	# 2. Create inventory items
-	# Note: Position passed to _init is redundant if we call add_item which sets it,
-	# but we'll keep it consistent.
-	var rifle = InventoryItem.new(rifle_data, Vector2i(0, 0))
-	var ammo = InventoryItem.new(ammo_data, Vector2i(5, 0))
-	
-	# 3. Add to grid
-	inventory_grid.add_item(rifle, Vector2i(0, 0))
-	inventory_grid.add_item(ammo, Vector2i(5, 0))
+	# Add to grid
+	if ak47:
+		inventory_grid.add_item(ak47, ak47.position)
+	if ammo:
+		inventory_grid.add_item(ammo, ammo.position)
+	if medkit:
+		inventory_grid.add_item(medkit, medkit.position)
 	
 	_refresh_items()
+	
+	print("Loaded items from database")
+

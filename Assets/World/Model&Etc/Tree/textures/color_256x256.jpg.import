@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://cnr1kd8ofjrce"
-path="res://.godot/imported/color_128x128.jpg-3ec96570e7db6f19a20b0d51e7cbec94.ctex"
+uid="uid://dqrwx83juh2c3"
+path="res://.godot/imported/color_256x256.jpg-06e498a2dc02ecc7b4d7e50325361007.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://Assets/World/Model/Tree/textures/color_128x128.jpg"
-dest_files=["res://.godot/imported/color_128x128.jpg-3ec96570e7db6f19a20b0d51e7cbec94.ctex"]
+source_file="res://Assets/World/Model&Etc/Tree/textures/color_256x256.jpg"
+dest_files=["res://.godot/imported/color_256x256.jpg-06e498a2dc02ecc7b4d7e50325361007.ctex"]
 
 [params]
 
