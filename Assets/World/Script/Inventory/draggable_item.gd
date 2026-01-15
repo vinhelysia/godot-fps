@@ -7,30 +7,43 @@ var cell_size: int = 32
 var is_dragging: bool = false
 var drag_offset: Vector2 = Vector2.ZERO
 
+var background_panel: Panel
+var texture_rect: TextureRect
+
 func setup(item: InventoryItem, grid: InventoryGrid, cell_size_px: int):
 	inventory_item = item
 	inventory_grid = grid
 	cell_size = cell_size_px
 	
-	var item_size = item.get_size()
-	custom_minimum_size = Vector2(item_size * cell_size)
-	self.size = custom_minimum_size
+	# Create Background (Translucent Gray with Border)
+	background_panel = Panel.new()
+	var style = StyleBoxFlat.new()
+	style.bg_color = Color(0.2, 0.2, 0.2, 0.4)
+	style.border_width_left = 1
+	style.border_width_top = 1
+	style.border_width_right = 1
+	style.border_width_bottom = 1
+	style.border_color = Color.BLACK
+	background_panel.add_theme_stylebox_override("panel", style)
+	background_panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	add_child(background_panel)
 	
-	var texture_rect = TextureRect.new()
+	# Create Icon
+	texture_rect = TextureRect.new()
 	if item.data.icon:
 		texture_rect.texture = item.data.icon
 	else:
-		var img = Image.create(int(self.size.x), int(self.size.y), false, Image.FORMAT_RGBA8)
+		var img = Image.create(cell_size, cell_size, false, Image.FORMAT_RGBA8)
 		img.fill(Color.GRAY)
 		texture_rect.texture = ImageTexture.create_from_image(img)
 		
 	texture_rect.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
-	texture_rect.position = Vector2.ZERO
-	texture_rect.size = self.size
 	texture_rect.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(texture_rect)
+	
+	_update_visual()
 
-# ✅ HANDLE MOUSE INPUT (Left-click drag only)
+# ✅ HANDLE MOUSE INPUT (Drag & Context Menu)
 func _gui_input(event: InputEvent):
 	if event is InputEventMouseButton:
 		if event.button_index == MOUSE_BUTTON_LEFT:
@@ -41,6 +54,48 @@ func _gui_input(event: InputEvent):
 			else:
 				is_dragging = false
 				_try_place_at_mouse()
+		
+		# Right Click - Context Menu
+		elif event.button_index == MOUSE_BUTTON_RIGHT and event.pressed:
+			_show_context_menu()
+
+func _show_context_menu():
+	var popup = PopupMenu.new()
+	popup.add_item("Equip", 1)
+	popup.add_item("Drop", 2)
+	
+	# Disable 'Equip' if not a weapon
+	if not (inventory_item.data is WeaponData):
+		popup.set_item_disabled(0, true)
+	
+	popup.id_pressed.connect(_on_context_menu_item_selected)
+	add_child(popup)
+	
+	# Show at mouse position
+	popup.position = Vector2(get_viewport().get_mouse_position())
+	popup.popup()
+
+func _on_context_menu_item_selected(id: int):
+	match id:
+		1: # Equip
+			_equip_item()
+		2: # Drop
+			_drop_item()
+
+func _equip_item():
+	if inventory_item.data is WeaponData:
+		var player = get_tree().get_first_node_in_group("player")
+		if player:
+			player.equip_weapon(inventory_item)
+		else:
+			print("Error: Player node not found in group 'player'")
+
+func _drop_item():
+	var player = get_tree().get_first_node_in_group("player")
+	if player:
+		player.drop_inventory_item(inventory_item)
+	else:
+		print("Error: Player node not found - cannot drop item")
 
 # ✅ HANDLE R KEY FOR ROTATION
 func _unhandled_input(event: InputEvent) -> void:
@@ -75,13 +130,33 @@ func _rotate_item_during_drag() -> void:
 			print("Cannot rotate - would overlap or go out of bounds")
 
 func _update_visual() -> void:
-	var item_size = inventory_item.get_size()
-	custom_minimum_size = Vector2(item_size * cell_size)
-	self.size = custom_minimum_size
-	for child in get_children():
-		if child is TextureRect:
-			child.size = self.size
-			break
+	var item_size_slots = inventory_item.get_size()
+	var pixel_size = Vector2(item_size_slots * cell_size)
+	
+	# 1. Update Container Size
+	custom_minimum_size = pixel_size
+	size = pixel_size
+	
+	# 2. Update Background
+	if background_panel:
+		background_panel.size = pixel_size
+		
+	# 3. Update Icon Rotation
+	if texture_rect:
+		if inventory_item.is_rotated:
+			# If rotated, we show the unrotated texture rotated 90 degrees
+			var original_slots = inventory_item.data.size
+			var original_pixel_size = Vector2(original_slots * cell_size)
+			
+			texture_rect.size = original_pixel_size
+			texture_rect.rotation_degrees = 90
+			# Shift X by height (which corresponds to unrotated texture's height)
+			texture_rect.position = Vector2(original_pixel_size.y, 0)
+			
+		else:
+			texture_rect.rotation_degrees = 0
+			texture_rect.size = pixel_size
+			texture_rect.position = Vector2.ZERO
 
 func _process(_delta):
 	if is_dragging:

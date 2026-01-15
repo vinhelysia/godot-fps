@@ -69,6 +69,9 @@ func _ready() -> void:
 	_initialize_health_system()
 	_initialize_inventory()
 	Input.set_mouse_mode(Input.MOUSE_MODE_CAPTURED)
+	add_to_group("player") # ✅ Register for easy access
+
+	_initialize_hand_socket()
 
 func _initialize_stamina_bar() -> void:
 	if stamina_bar:
@@ -96,6 +99,99 @@ func _initialize_health_system() -> void:
 	health_system.player_died.connect(_on_player_died)
 	
 	print("Health System initialized")
+
+func _initialize_hand_socket() -> void:
+	# Create a hand socket attached to the camera for FPS view
+	if not hand_socket:
+		hand_socket = Node3D.new()
+		hand_socket.name = "HandSocket"
+		camera_3d.add_child(hand_socket)
+		# Position it slightly forward and to the right
+		hand_socket.position = Vector3(0.5, -0.5, -0.7)
+		print("HandSocket initialized")
+
+#region Equipment
+var equipped_weapon: InventoryItem = null
+var current_weapon_instance: Node3D = null
+var hand_socket: Node3D = null
+
+func equip_weapon(item: InventoryItem) -> void:
+	if equipped_weapon == item:
+		return
+		
+	# Unequip current if any
+	if equipped_weapon:
+		unequip_weapon()
+	
+	equipped_weapon = item
+	print("Equipping weapon: ", item.data.item_id)
+	
+	# Spawn 3D model
+	if item.data.model_path and item.data.model_path != "":
+		var model_scene = load(item.data.model_path)
+		if model_scene:
+			current_weapon_instance = model_scene.instantiate()
+			hand_socket.add_child(current_weapon_instance)
+			
+			# Reset transform to ensure it aligns with socket
+			current_weapon_instance.transform = Transform3D.IDENTITY
+			# Rotate 180 degrees if the model is facing backwards (common with GLTF)
+			current_weapon_instance.rotation_degrees.y = 90
+			print("Weapon model spawned")
+	
+	# TODO: Play Equip Animation
+	print("PLAY ANIMATION: Equip")
+
+func unequip_weapon() -> void:
+	if not equipped_weapon:
+		return
+		
+	print("Unequipping: ", equipped_weapon.data.item_id)
+	
+	# Despawn model
+	if current_weapon_instance:
+		current_weapon_instance.queue_free()
+		current_weapon_instance = null
+	
+	equipped_weapon = null
+	
+	# TODO: Play Unequip Animation
+	print("PLAY ANIMATION: Unequip")
+
+func drop_inventory_item(item: InventoryItem) -> void:
+	print("Dropping item: ", item.data.item_id)
+	
+	# If equipped, unequip first
+	if equipped_weapon == item:
+		unequip_weapon()
+	
+	# Remove from inventory grid
+	if inventory_ui and inventory_ui.inventory_grid:
+		inventory_ui.inventory_grid.items.erase(item)
+		inventory_ui.refresh_items()
+	
+	# Spawn pickup in world
+	_spawn_pickup(item)
+
+func _spawn_pickup(item: InventoryItem) -> void:
+	var model_path = item.data.model_path
+	if not model_path or model_path == "":
+		# Fallback or just don't spawn visual (logic is handled)
+		print("No model path for drop, skipping visual spawn")
+		return
+		
+	var pickup_scene = load(model_path)
+	if pickup_scene:
+		var pickup_instance = pickup_scene.instantiate()
+		get_parent().add_child(pickup_instance) # Add to world, not player
+		
+		# Position in front of player
+		var spawn_pos = global_transform.origin - global_transform.basis.z * 1.5
+		spawn_pos.y += 1.0 # Drop slightly above ground
+		pickup_instance.global_transform.origin = spawn_pos
+		
+		print("Spawned pickup at: ", spawn_pos)
+#endregion
 
 func _position_health_ui() -> void:
 	if not health_ui:

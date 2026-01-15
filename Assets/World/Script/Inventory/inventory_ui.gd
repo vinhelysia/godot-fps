@@ -51,7 +51,7 @@ func _create_grid():
 	
 	print("Inventory UI size set to: ", size)
 
-func _refresh_items():
+func refresh_items():
 	# Clear existing DraggableItems
 	for child in get_children():
 		if child is DraggableItem:
@@ -78,7 +78,7 @@ func test():
 	if medkit:
 		inventory_grid.add_item(medkit, medkit.position)
 	
-	_refresh_items()
+	refresh_items()
 	
 	print("Loaded items from database")
 
