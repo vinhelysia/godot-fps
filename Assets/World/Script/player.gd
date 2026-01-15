@@ -1,45 +1,26 @@
 extends CharacterBody3D
 class_name FPSController
 
-#region Movement Configuration
-@export_group("Movement")
-@export var walk_speed: float = 2.0
-@export var sprint_speed: float = 5.0
-@export var jump_velocity: float = 4.0
-@export var acceleration: float = 10.0
-@export var deceleration: float = 12.0
-@export_range(0.0, 1.0) var air_control: float = 0.3
+#region Configuration
+@export var config: PlayerConfig
 
-@export_group("Camera")
-@export var mouse_sensitivity: float = 0.003
-@export var camera_pitch_limit: float = 1.5
-#endregion
+# Fallback default config if none assigned
+var _default_config: PlayerConfig
 
-#region Stamina Configuration
-@export_group("Stamina")
-@export var max_stamina: float = 150.0
-@export var stamina_drain_rate: float = 15.0
-@export var stamina_regen_rate: float = 10.0
-@export var stamina_regen_delay: float = 1.0
-@export var stamina_min_to_sprint: float = 10.0
-@export var stamina_jump_cost: float = 15.0
-#endregion
-
-#region Headbob Configuration
-@export_group("Headbob")
-@export var bob_frequency_walk: float = 2.0
-@export var bob_frequency_sprint: float = 2.8
-@export var bob_amplitude_walk: float = 0.05
-@export var bob_amplitude_sprint: float = 0.1
-@export var headbob_smoothing: float = 5.0
+func _get_config() -> PlayerConfig:
+	return config if config else _default_config
 #endregion
 
 #region State Variables
 var current_speed: float = 0.0
-var stamina: float = max_stamina
+var stamina: float = 0.0
 var stamina_regen_timer: float = 0.0
 var is_exhausted: bool = false
 var headbob_time: float = 0.0
+
+# Input buffering for better game feel
+var coyote_counter: float = 0.0
+var jump_buffer_counter: float = 0.0
 
 #endregion
 
@@ -65,6 +46,13 @@ var health_ui: HealthUI
 
 #region Initialization
 func _ready() -> void:
+	# Create default config if none assigned
+	if not config:
+		_default_config = PlayerConfig.new()
+	
+	# Initialize stamina to max
+	stamina = _get_config().max_stamina
+	
 	_initialize_stamina_bar()
 	_initialize_health_system()
 	_initialize_inventory()
@@ -75,7 +63,7 @@ func _ready() -> void:
 
 func _initialize_stamina_bar() -> void:
 	if stamina_bar:
-		stamina_bar.max_value = max_stamina
+		stamina_bar.max_value = _get_config().max_stamina
 		stamina_bar.value = stamina
 
 func _initialize_health_system() -> void:
@@ -316,9 +304,10 @@ func _toggle_inventory() -> void:
 
 
 func _handle_mouse_look(event: InputEventMouseMotion) -> void:
-	rotate_y(-event.relative.x * mouse_sensitivity)
-	camera_pivot.rotate_x(-event.relative.y * mouse_sensitivity)
-	camera_pivot.rotation.x = clamp(camera_pivot.rotation.x, -camera_pitch_limit, camera_pitch_limit)
+	var cfg = _get_config()
+	rotate_y(-event.relative.x * cfg.mouse_sensitivity)
+	camera_pivot.rotate_x(-event.relative.y * cfg.mouse_sensitivity)
+	camera_pivot.rotation.x = clamp(camera_pivot.rotation.x, -1.5, 1.5)
 #endregion
 
 #region Physics Process
@@ -329,8 +318,9 @@ func _physics_process(delta: float) -> void:
 	if is_inventory_open:
 		# Still allow deceleration so player slows down naturally
 		if is_on_floor():
-			velocity.x = move_toward(velocity.x, 0.0, deceleration * delta * walk_speed)
-			velocity.z = move_toward(velocity.z, 0.0, deceleration * delta * walk_speed)
+			var cfg = _get_config()
+			velocity.x = move_toward(velocity.x, 0.0, 10.0 * delta * cfg.walk_speed)
+			velocity.z = move_toward(velocity.z, 0.0, 10.0 * delta * cfg.walk_speed)
 		_update_ui()
 		move_and_slide()
 		return
@@ -364,7 +354,8 @@ func _calculate_movement_direction(input_dir: Vector2) -> Vector3:
 	return (transform.basis * Vector3(input_dir.x, 0, input_dir.y)).normalized()
 
 func _update_speed(is_sprinting: bool) -> void:
-	current_speed = sprint_speed if is_sprinting else walk_speed
+	var cfg = _get_config()
+	current_speed = cfg.sprint_speed if is_sprinting else cfg.walk_speed
 
 func _apply_movement(direction: Vector3, delta: float) -> void:
 	if is_on_floor():
@@ -374,14 +365,15 @@ func _apply_movement(direction: Vector3, delta: float) -> void:
 
 func _apply_ground_movement(direction: Vector3, delta: float) -> void:
 	var is_moving := direction.length() > MOVEMENT_THRESHOLD
-	var accel := acceleration if is_moving else deceleration
+	var accel := 10.0 if is_moving else 12.0  # acceleration/deceleration
 	var target_velocity := direction * current_speed if is_moving else Vector3.ZERO
 	
 	velocity.x = move_toward(velocity.x, target_velocity.x, accel * delta * current_speed)
 	velocity.z = move_toward(velocity.z, target_velocity.z, accel * delta * current_speed)
 
 func _apply_air_movement(direction: Vector3, delta: float) -> void:
-	var air_acceleration := acceleration * air_control * delta
+	var air_control := 0.3
+	var air_acceleration := 10.0 * air_control * delta
 	var target_change := direction * current_speed * air_control
 	
 	velocity.x = move_toward(velocity.x, velocity.x + target_change.x, air_acceleration)
@@ -390,19 +382,33 @@ func _apply_air_movement(direction: Vector3, delta: float) -> void:
 
 #region Jump System
 func _handle_jump() -> void:
-	if not Input.is_action_just_pressed("ui_accept"):
-		return
-	if not is_on_floor():
-		return
-	if stamina < stamina_jump_cost or is_exhausted:
-		return
+	var cfg = _get_config()
+	var was_on_floor = is_on_floor()
 	
-	velocity.y = jump_velocity
-	_consume_stamina(stamina_jump_cost)
+	# Update coyote time (grace period after leaving ground)
+	if was_on_floor:
+		coyote_counter = cfg.coyote_time
+	else:
+		coyote_counter -= get_physics_process_delta_time()
+	
+	# Update jump buffer (remember jump input briefly)
+	if Input.is_action_just_pressed("ui_accept"):
+		jump_buffer_counter = cfg.jump_buffer_time
+	else:
+		jump_buffer_counter -= get_physics_process_delta_time()
+	
+	# Can jump if recently grounded OR jump was buffered
+	if jump_buffer_counter > 0.0 and coyote_counter > 0.0:
+		if stamina >= cfg.stamina_jump_cost and not is_exhausted:
+			velocity.y = cfg.jump_velocity
+			_consume_stamina(cfg.stamina_jump_cost)
+			jump_buffer_counter = 0.0  # Consume buffered input
+			coyote_counter = 0.0  # Prevent double jump
 
 func _consume_stamina(amount: float) -> void:
+	var cfg = _get_config()
 	stamina = max(0.0, stamina - amount)
-	stamina_regen_timer = stamina_regen_delay
+	stamina_regen_timer = cfg.stamina_regen_delay
 	
 	if stamina <= 0.0:
 		is_exhausted = true
@@ -420,24 +426,26 @@ func _update_stamina(delta: float, is_sprinting: bool) -> void:
 		_regenerate_stamina(delta)
 
 func _drain_stamina(delta: float) -> void:
-	stamina = max(0.0, stamina - stamina_drain_rate * delta)
-	stamina_regen_timer = stamina_regen_delay
+	var cfg = _get_config()
+	stamina = max(0.0, stamina - cfg.stamina_sprint_drain * delta)
+	stamina_regen_timer = cfg.stamina_regen_delay
 	
 	if stamina <= 0.0:
 		is_exhausted = true
 
 func _regenerate_stamina(delta: float) -> void:
+	var cfg = _get_config()
 	# Mark as exhausted if below minimum threshold
-	if stamina < stamina_min_to_sprint and not is_exhausted:
+	if stamina < cfg.stamina_min_to_sprint and not is_exhausted:
 		is_exhausted = true
 	
 	# Regenerate after delay
 	stamina_regen_timer -= delta
 	if stamina_regen_timer <= 0.0:
-		stamina = min(max_stamina, stamina + stamina_regen_rate * delta)
+		stamina = min(cfg.max_stamina, stamina + cfg.stamina_regen_rate * delta)
 	
 	# Clear exhaustion when stamina recovers
-	if is_exhausted and stamina >= stamina_min_to_sprint:
+	if is_exhausted and stamina >= cfg.stamina_min_to_sprint:
 		is_exhausted = false
 #endregion
 
@@ -449,9 +457,11 @@ func _apply_headbob(delta: float, is_moving: bool) -> void:
 		_reset_headbob(delta)
 
 func _apply_active_headbob(delta: float) -> void:
-	var is_sprinting := current_speed == sprint_speed
-	var frequency := bob_frequency_sprint if is_sprinting else bob_frequency_walk
-	var amplitude := bob_amplitude_sprint if is_sprinting else bob_amplitude_walk
+	var cfg = _get_config()
+	var is_sprinting: bool = current_speed == cfg.sprint_speed
+	var sprint_mult: float = cfg.headbob_sprint_multiplier if is_sprinting else 1.0
+	var frequency: float = cfg.headbob_frequency * sprint_mult
+	var amplitude: float = cfg.headbob_amplitude * sprint_mult
 	
 	headbob_time += delta * velocity.length()
 	camera_pivot.transform.origin = _calculate_headbob_offset(headbob_time, frequency, amplitude)
@@ -459,7 +469,7 @@ func _apply_active_headbob(delta: float) -> void:
 func _reset_headbob(delta: float) -> void:
 	camera_pivot.transform.origin = camera_pivot.transform.origin.lerp(
 		Vector3.ZERO, 
-		delta * headbob_smoothing
+		delta * 5.0  # headbob smoothing
 	)
 
 func _calculate_headbob_offset(time: float, frequency: float, amplitude: float) -> Vector3:

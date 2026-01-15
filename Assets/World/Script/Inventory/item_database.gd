@@ -34,8 +34,8 @@ func _register_all_items() -> void:
 		"magazine_size": 30,
 		"weapon_type": WeaponData.WeaponType.RIFLE,
 		"fire_mode": WeaponData.FireMode.AUTO,
-		"icon_path": "",  # TODO: Add icon when model is added
-		"model_path": ""  # TODO: Add model path
+		"icon_path": "res://Assets/World/Model&Etc/Weapon/Firearms/AssaultRifle/M4A1/m4.png",
+		"model_path": "res://Assets/World/Model&Etc/Weapon/Firearms/AssaultRifle/M4A1/m4.glb"
 	})
 	
 	_register_weapon("glock17", "Glock 17", Vector2i(2, 2), {

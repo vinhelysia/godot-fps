@@ -67,12 +67,15 @@ func refresh_items():
 func test():
 	# Use the database to spawn items instead of manual creation
 	var ak47 = ItemDB.create_inventory_item("ak47", Vector2i(0, 0))
+	var m4a1 = ItemDB.create_inventory_item("m4a1", Vector2i(0, 3))  # M4 below AK47
 	var ammo = ItemDB.create_inventory_item("ammo_762", Vector2i(5, 0))
 	var medkit = ItemDB.create_inventory_item("medkit", Vector2i(7, 0))
 	
 	# Add to grid
 	if ak47:
 		inventory_grid.add_item(ak47, ak47.position)
+	if m4a1:
+		inventory_grid.add_item(m4a1, m4a1.position)
 	if ammo:
 		inventory_grid.add_item(ammo, ammo.position)
 	if medkit:
